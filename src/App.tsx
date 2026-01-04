@@ -15,11 +15,16 @@ import {
   Spin,
   theme,
 } from "antd";
-import { StarOutlined, CompassOutlined } from "@ant-design/icons";
+import {
+  StarOutlined,
+  CompassOutlined,
+  DownloadOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+import html2pdf from "html2pdf.js";
 import "./App.css";
 
 // --- IMPORT TIẾNG VIỆT ---
@@ -45,8 +50,10 @@ interface FormValues {
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
+  const [pdfInfo, setPdfInfo] = useState({ name: "", year: "" });
 
   const onFinish = async (values: FormValues) => {
+    setPdfInfo({ name: values.fullName, year: values.viewYear });
     setLoading(true);
     setResult("");
 
@@ -83,6 +90,114 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- Hàm xử lý tải PDF ---
+  const handleDownloadPDF = () => {
+    const element = document.getElementById("fortune-result");
+    if (!element) return;
+
+    const fileName = `${pdfInfo.name}-${pdfInfo.year}.pdf`;
+
+    const opt = {
+      margin: [15, 15, 15, 15] as [number, number, number, number], // Tăng lề lên 1 chút để thoáng
+      filename: fileName,
+      image: { type: "jpeg" as const, quality: 0.98 },
+
+      // --- CẤU HÌNH NGẮT TRANG (QUAN TRỌNG) ---
+      pagebreak: {
+        mode: ["avoid-all", "css", "legacy"], // Cố gắng tránh cắt ngang tất cả các thẻ
+        // Chỉ định rõ các thẻ không được phép cắt đôi
+        avoid: [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "p",
+          "span",
+          "div",
+          "strong",
+          "em",
+          "b",
+          "i",
+          "ol",
+          "ul",
+          "li",
+          "hr",
+          "blockquote",
+          "table",
+          "thead",
+          "tbody",
+          "tr",
+          "td",
+          "br",
+        ],
+      },
+
+      html2canvas: {
+        scale: 2, // Tăng độ nét
+        useCORS: true,
+        letterRendering: true, // Giúp render chữ rõ hơn
+        scrollY: 0,
+        // @ts-ignore
+        onclone: (clonedDoc: Document) => {
+          const target = clonedDoc.getElementById("fortune-result");
+
+          if (target) {
+            // TẠO STYLE GHI ĐÈ
+            const style = clonedDoc.createElement("style");
+            style.innerHTML = `
+              /* 1. Cấu hình màu sắc (Trắng/Đen) */
+              #fortune-result {
+                background-color: #FFFFFF !important;
+                color: #000000 !important;
+                padding: 20px !important;
+                height: auto !important; /* Đảm bảo chiều cao tự động mở rộng */
+                width: 100% !important;
+              }
+              
+              #fortune-result * {
+                color: #000000 !important;
+                background-color: transparent !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+              }
+
+              /* 2. Cấu hình Font chữ và khoảng cách cho dễ đọc khi in */
+              #fortune-result p, #fortune-result li {
+                font-size: 14px !important;
+                line-height: 1.6 !important; /* Giãn dòng để tránh bị dính khi cắt trang */
+                margin-bottom: 12px !important;
+                text-align: justify !important; /* Căn đều 2 bên cho đẹp */
+              }
+
+              #fortune-result h1, #fortune-result h2, #fortune-result h3 {
+                 margin-top: 20px !important;
+                 margin-bottom: 10px !important;
+                 border-bottom: 1px solid #000 !important; /* Thêm gạch chân đen cho tiêu đề */
+                 padding-bottom: 5px !important;
+              }
+
+              /* 3. QUAN TRỌNG: CSS BẮT BUỘC KHÔNG NGẮT GIỮA DÒNG */
+              p, h1, h2, h3, h4, li, blockquote {
+                page-break-inside: avoid !important; /* Chuẩn in ấn cũ */
+                break-inside: avoid !important;      /* Chuẩn hiện đại */
+              }
+
+              /* Ẩn các thành phần thừa */
+              .ant-btn { display: none !important; }
+            `;
+
+            clonedDoc.body.appendChild(style);
+          }
+        },
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+    };
+
+    html2pdf().set(opt).from(element).save();
   };
 
   // ... (The rest of your UI/JSX remains exactly the same)
@@ -294,15 +409,62 @@ const App: React.FC = () => {
                   <Title level={3} style={{ color: "#ffd700", margin: 0 }}>
                     📜 Lá Số Luận Giải
                   </Title>
+                  <Button
+                    type="default"
+                    icon={<DownloadOutlined />}
+                    onClick={handleDownloadPDF}
+                    style={{
+                      borderColor: "#ffd700",
+                      color: "#ffd700",
+                      background: "transparent",
+                    }}
+                  >
+                    Tải PDF
+                  </Button>
                 </div>
 
-                <div className="markdown-content">
+                {/* Thêm ID fortune-result vào đây để html2pdf chụp ảnh phần này */}
+                <div
+                  id="fortune-result"
+                  className="markdown-content"
+                  style={{ padding: "10px" }}
+                >
+                  {/* Thêm tiêu đề vào file PDF cho đẹp (tuỳ chọn) */}
+                  <div
+                    style={{
+                      textAlign: "center",
+                      marginBottom: 20,
+                      borderBottom: "1px dashed #555",
+                    }}
+                  >
+                    <h2
+                      style={{ color: "#ffd700", textTransform: "uppercase" }}
+                    >
+                      Luận Giải Vận Mệnh
+                    </h2>
+                    <p style={{ color: "#ccc" }}>
+                      Tín chủ: <strong>{pdfInfo.name}</strong> - Năm:{" "}
+                      <strong>{pdfInfo.year}</strong>
+                    </p>
+                  </div>
+
                   <ReactMarkdown
                     rehypePlugins={[rehypeRaw]}
                     remarkPlugins={[remarkGfm]}
                   >
                     {result}
                   </ReactMarkdown>
+
+                  <div
+                    style={{
+                      textAlign: "center",
+                      marginTop: 30,
+                      fontSize: 12,
+                      color: "#666",
+                    }}
+                  >
+                    <p>--- Thiên Cơ Các ---</p>
+                  </div>
                 </div>
               </Card>
             )}
