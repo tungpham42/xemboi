@@ -181,7 +181,7 @@ const App: React.FC = () => {
               }
 
               /* 3. QUAN TRỌNG: CSS BẮT BUỘC KHÔNG NGẮT GIỮA DÒNG */
-              p, h1, h2, h3, h4, li, blockquote {
+              p, h1, h2, h3, h4, h5, h6, li, blockquote, div, span, strong, em, b, i, ol, ul, hr, br, table, thead, tbody, td, th, tr, br, hr {
                 page-break-inside: avoid !important; /* Chuẩn in ấn cũ */
                 break-inside: avoid !important;      /* Chuẩn hiện đại */
               }
