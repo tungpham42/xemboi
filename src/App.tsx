@@ -47,6 +47,47 @@ interface FormValues {
   viewYear: string;
 }
 
+// --- Helper: Tính Can Chi ---
+const getLunarYearName = (year: number) => {
+  const can = [
+    "Canh",
+    "Tân",
+    "Nhâm",
+    "Quý",
+    "Giáp",
+    "Ất",
+    "Bính",
+    "Đinh",
+    "Mậu",
+    "Kỷ",
+  ];
+  const chi = [
+    "Thân",
+    "Dậu",
+    "Tuất",
+    "Hợi",
+    "Tý",
+    "Sửu",
+    "Dần",
+    "Mão",
+    "Thìn",
+    "Tỵ",
+    "Ngọ",
+    "Mùi",
+  ];
+  return `${can[year % 10]} ${chi[year % 12]}`;
+};
+
+// --- Helper: Tạo danh sách 10 năm tới ---
+const currentYear = dayjs().year();
+const yearOptions = Array.from({ length: 10 }, (_, i) => {
+  const year = currentYear + i;
+  return {
+    value: year.toString(),
+    label: `${year} (${getLunarYearName(year)})`,
+  };
+});
+
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -272,7 +313,10 @@ const App: React.FC = () => {
               <Form
                 layout="vertical"
                 onFinish={onFinish}
-                initialValues={{ viewYear: "2026", gender: "Nam" }}
+                initialValues={{
+                  viewYear: currentYear.toString(),
+                  gender: "Nam",
+                }}
                 size="large"
               >
                 <Row gutter={24}>
@@ -358,9 +402,11 @@ const App: React.FC = () => {
                       }
                     >
                       <Select>
-                        <Option value="2025">2025 (Ất Tỵ)</Option>
-                        <Option value="2026">2026 (Bính Ngọ)</Option>
-                        <Option value="2027">2027 (Đinh Mùi)</Option>
+                        {yearOptions.map((opt) => (
+                          <Option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </Option>
+                        ))}
                       </Select>
                     </Form.Item>
                   </Col>
