@@ -141,95 +141,123 @@ const App: React.FC = () => {
     const fileName = `${pdfInfo.name}-${pdfInfo.year}.pdf`;
 
     const opt = {
-      margin: [15, 15, 15, 15] as [number, number, number, number], // Tăng lề lên 1 chút để thoáng
+      margin: [10, 10, 10, 10] as [number, number, number, number],
       filename: fileName,
       image: { type: "jpeg" as const, quality: 0.98 },
 
-      // --- CẤU HÌNH NGẮT TRANG (QUAN TRỌNG) ---
+      // --- CẤU HÌNH NGẮT TRANG (SỬA ĐỔI) ---
+      enableLinks: false, // Tắt link để tránh lỗi render
       pagebreak: {
-        mode: ["avoid-all", "css", "legacy"], // Cố gắng tránh cắt ngang tất cả các thẻ
-        // Chỉ định rõ các thẻ không được phép cắt đôi
-        avoid: [
-          "h1",
-          "h2",
-          "h3",
-          "h4",
-          "h5",
-          "h6",
-          "p",
-          "span",
-          "div",
-          "strong",
-          "em",
-          "b",
-          "i",
-          "ol",
-          "ul",
-          "li",
-          "hr",
-          "blockquote",
-          "thead",
-          "tbody",
-          "tr",
-          "td",
-          "br",
-        ],
+        mode: ["css", "avoid-all"], // Chỉ dùng mode CSS, bỏ legacy để tránh xung đột
+        before: ".page-break-before", // Class chủ động ngắt trang nếu cần
+        avoid: "tr, td, li, h1, h2, h3, h4, h5, h6", // Tránh cắt ngang dòng trong bảng (nếu có)
       },
+      letterRendering: true,
 
       html2canvas: {
-        scale: 2, // Tăng độ nét
+        scale: 2,
         useCORS: true,
-        letterRendering: true, // Giúp render chữ rõ hơn
         scrollY: 0,
+        // Ép chiều rộng cố định để giao diện lúc in không bị vỡ theo màn hình điện thoại/laptop
+        windowWidth: 1200,
         // @ts-ignore
         onclone: (clonedDoc: Document) => {
           const target = clonedDoc.getElementById("fortune-result");
 
           if (target) {
-            // TẠO STYLE GHI ĐÈ
             const style = clonedDoc.createElement("style");
             style.innerHTML = `
-              /* 1. Cấu hình màu sắc (Trắng/Đen) */
-              #fortune-result {
-                background-color: #FFFFFF !important;
+              /* 1. RESET TRIỆT ĐỂ: Dùng font hệ thống để tính toán chiều cao chính xác nhất */
+              #fortune-result, #fortune-result * {
+                font-family: "Times New Roman", Times, serif !important;
                 color: #000000 !important;
-                padding: 20px !important;
-                height: auto !important; /* Đảm bảo chiều cao tự động mở rộng */
-                width: 100% !important;
-              }
-              
-              #fortune-result * {
-                color: #000000 !important;
-                background-color: transparent !important;
+                background: transparent !important;
                 box-shadow: none !important;
                 text-shadow: none !important;
+                overflow: visible !important;
               }
 
-              /* 2. Cấu hình Font chữ và khoảng cách cho dễ đọc khi in */
-              #fortune-result p, #fortune-result li {
-                font-size: 14px !important;
-                line-height: 1.6 !important; /* Giãn dòng để tránh bị dính khi cắt trang */
-                margin-bottom: 12px !important;
-                text-align: justify !important; /* Căn đều 2 bên cho đẹp */
+              /* 2. Ép Layout đơn giản hóa */
+              #fortune-result {
+                padding: 10px !important;
+                width: 100% !important;
+                max-width: 100% !important;
               }
 
-              #fortune-result h1, #fortune-result h2, #fortune-result h3 {
-                 margin-top: 20px !important;
-                 margin-bottom: 10px !important;
-                 border-bottom: 1px solid #000 !important; /* Thêm gạch chân đen cho tiêu đề */
-                 padding-bottom: 5px !important;
+              /* 3. XỬ LÝ KHÔNG CẮT DÒNG (QUAN TRỌNG NHẤT) */
+              /* Biến mọi thứ thành block để html2pdf dễ tính toán khoảng trắng */
+              p, h1, h2, h3, h4, li, div {
+                display: block !important;
+                float: none !important;
               }
 
-              /* 3. QUAN TRỌNG: CSS BẮT BUỘC KHÔNG NGẮT GIỮA DÒNG */
-              p, h1, h2, h3, h4, h5, h6, li, blockquote, div, span, strong, em, b, i, ol, ul, hr, br, thead, tbody, td, th, tr, br, hr {
-                page-break-inside: avoid !important; /* Chuẩn in ấn cũ */
-                break-inside: avoid !important;      /* Chuẩn hiện đại */
+              /* Lệnh cấm cắt đôi phần tử */
+              p, h1, h2, h3, h4, h5, h6, li, blockquote, img, tr, th, td {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                
+                /* Thêm margin dưới để tạo khoảng an toàn cho dao cắt */
+                margin-bottom: 15px !important; 
+                
+                /* Reset line-height chuẩn */
+                line-height: 1.5 !important;
               }
 
-              /* Ẩn các thành phần thừa */
-              .ant-btn { display: none !important; }
+              /* Tiêu đề luôn dính với nội dung bên dưới (không nằm trơ trọi cuối trang) */
+              h1, h2, h3, h4 {
+                page-break-after: avoid !important;
+                margin-top: 30px !important;
+                border-bottom: 1px solid #000 !important;
+              }
+
+              /* Các thành phần rác của Ant Design */
+              .ant-btn, .ant-message, .ant-modal, .hidden-print { 
+                display: none !important; 
+              }
+
+              /* --- KHẮC PHỤC LỖI CẮT TABLE (QUAN TRỌNG NHẤT) --- */
+              
+              /* 1. Đảm bảo bảng không bị tràn lề */
+              table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-bottom: 20px !important;
+                background: transparent !important;
+                border: 1px solid #333 !important;
+              }
+
+              /* 2. Cấm cắt ngang dòng (tr) và ô (td) */
+              tr, td, th {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-before: auto !important;
+                page-break-after: auto !important;
+              }
+
+              /* 3. Tăng độ thoáng cho ô để dao cắt dễ nhận diện */
+              td, th {
+                padding: 8px !important;
+                vertical-align: top !important; /* Đẩy chữ lên trên để nếu bị cắt dưới đáy thì không mất chữ */
+                border: 1px solid #333 !important; /* Kẻ bảng rõ ràng */
+              }
+
+              /* 4. Xử lý phần Header của bảng (Lặp lại header khi sang trang - tuỳ trình duyệt hỗ trợ) */
+              thead {
+                display: table-header-group !important;
+              }
+              tfoot {
+                display: table-footer-group !important;
+              }
+              
+              /* 5. Fallback: Nếu bảng quá dài, ép nó hiển thị dạng block (chỉ dùng nếu cách trên vẫn lỗi) */
+              /* Bỏ comment đoạn dưới nếu bảng vẫn bị vỡ nát */
+              /*
+              @media print {
+                tr { display: block !important; border: 1px solid #000 !important; margin-bottom: 10px !important; }
+                td { display: block !important; border: none !important; }
+              } 
+              */
             `;
-
             clonedDoc.body.appendChild(style);
           }
         },
